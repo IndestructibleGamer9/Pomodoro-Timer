@@ -33,6 +33,11 @@ class DataControl():
         self.ws2 = self.wb.create_sheet(title='Settings')
         self.ws3 = self.wb.create_sheet(title='Reminders')
 
+        self.ws1['A1'] = 'ID'
+        self.ws1['A2'] = 'Log On'
+        self.ws2['A3'] = 'Log Off'
+        self.ws3['A4'] = 'Promo Time'
+
         self.wb.save(fn)
 
     def main(self):
