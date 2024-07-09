@@ -36,15 +36,15 @@ class DataControl():
         new_id = last_id + 1
 
         # Find the first empty row
-        new_row = self.ws1.max_row + 1
-        while self.ws1.cell(row=new_row, column=1).value is not None:
-            new_row += 1
+        self.new_row = self.ws1.max_row + 1
+        while self.ws1.cell(row=self.new_row, column=1).value is not None:
+            self.new_row += 1
 
         # Add new entry
         self.formatt()
-        self.ws1.cell(row=new_row, column=1, value=new_id)
-        self.ws1.cell(row=new_row, column=2, value=datetime.now())
-        self.ws1.cell(row=new_row, column=5, value=True)  # Set as active
+        self.ws1.cell(row=self.new_row, column=1, value=new_id)
+        self.ws1.cell(row=self.new_row, column=2, value=datetime.now())
+        self.ws1.cell(row=self.new_row, column=5, value=True)  # Set as active
 
         # Save the changes
         self.wb.save(filename)
@@ -79,6 +79,14 @@ class DataControl():
         self.ws2['A1'] = 'sound'
 
         self.wb.save(fn)
+
+    def close(self, time, sound):
+        fn = f'{USERNAME}.xlsx'
+        self.ws1.cell(row=self.new_row, column=3, value=datetime.now())
+        self.ws1.cell(row=self.new_row, column=4, value=time)
+        self.ws2.cell(row=2, column=1, value=sound)
+        self.wb.save(fn)
+
 
     def main(self):
         self.connect(USERNAME)

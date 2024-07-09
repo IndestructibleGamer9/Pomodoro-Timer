@@ -18,7 +18,9 @@ class Display():
         self.soundonoff = True
         self.i = 1
         pygame.mixer.init()
-        database = DataControl()
+        self.database = DataControl()
+        self.overall_time = 0
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
 
     def main(self):
         self.main_setup()
@@ -32,6 +34,7 @@ class Display():
         self.setup_style()
         self.create_notebook()
         self.create_main_window()
+        self.create_stats_window()
         self.settings_setup()
 
     def setup_style(self):
@@ -71,6 +74,13 @@ class Display():
         self.timer.pack(pady=30)
         self.start_stop.pack(pady=30)
 
+    def create_stats_window(self):
+        text = tk.Label(self.stats, text='Overall Time (MM:SS)', fg=self.accent_color, bg=self.bg_color, font=('Arial', 30, 'bold'))  
+        self.datalabel = tk.Label(self.stats, text=self.format_time(self.overall_time), fg=self.accent_color, bg=self.bg_color, font=('Arial', 30, 'bold'))
+
+        text.pack()
+        self.datalabel.pack()
+
     def settings_setup(self):
         self.sound = ttk.Checkbutton(self.settings, text='Sound', command=self.update_settings, style='TCheckbutton')
         self.sound.pack(pady=20)
@@ -84,7 +94,7 @@ class Display():
             print(self.soundonoff)
 
     def open_database(self):
-        self.open_database.connect('TESTING')
+        self.database.connect('TESTING')
                 
 
     def start(self):
@@ -94,13 +104,17 @@ class Display():
             self.alarm = False
 
     def loop(self):
+        self.datalabel.config(text=self.format_time(self.overall_time))
         if self.play:
             if self.time == 0:
                 self.play = False
                 self.finish()
                 self.time += 1
             self.time -= 1 
+            self.overall_time += 1
             self.timer.config(text=self.format_time(self.time))
+        else:
+            self.overall_time += 1
         self.root.after(1, self.loop)
 
     def finish(self):
@@ -125,6 +139,11 @@ class Display():
 
     def clear_message(self):
         self.drop_down.config(text='', bg=self.bg_color)    
+
+    def close(self):
+        print('finalising')
+        self.database.close(self.format_time(self.overall_time), self.soundonoff)  
+        self.root.destroy()  
 
     def id_to_str(self, period):
         id = {1: 'Work', 2: 'Short Rest', 3: 'Work', 4: 'Short Rest', 5: 'Work', 6: 'Long Rest'}
