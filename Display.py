@@ -3,6 +3,7 @@ from tkinter import ttk
 import time as systime
 import threading
 import pygame
+from DataHandle import DataControl
 
 class Display():
     def __init__(self):
@@ -17,6 +18,7 @@ class Display():
         self.soundonoff = True
         self.i = 1
         pygame.mixer.init()
+        database = DataControl()
 
     def main(self):
         self.main_setup()
@@ -26,7 +28,7 @@ class Display():
     def main_setup(self):
         self.root.configure(bg=self.bg_color)
         self.root.title('FOCUS')
-        
+        self.open_database()
         self.setup_style()
         self.create_notebook()
         self.create_main_window()
@@ -80,6 +82,10 @@ class Display():
         else:    
             self.soundonoff = not self.soundonoff
             print(self.soundonoff)
+
+    def open_database(self):
+        self.open_database.connect('TESTING')
+                
 
     def start(self):
         self.play = not self.play
