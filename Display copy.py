@@ -36,6 +36,7 @@ class Display():
         self.create_main_window()
         self.create_stats_window()
         self.settings_setup()
+        self.create_todo_window()  # Add this line
 
     def setup_style(self):
         style = ttk.Style()
@@ -56,10 +57,12 @@ class Display():
         self.main_win = ttk.Frame(self.notebook, style='TFrame')
         self.stats = ttk.Frame(self.notebook, style='TFrame')
         self.settings = ttk.Frame(self.notebook, style='TFrame')
+        self.todo_win = ttk.Frame(self.notebook, style='TFrame')  # New todo tab
 
         self.notebook.add(self.main_win, text='Timer')
         self.notebook.add(self.stats, text='Statistics')
         self.notebook.add(self.settings, text='Settings')
+        self.notebook.add(self.todo_win, text='To-Do')  # Add the new tab
 
     def create_main_window(self):
         self.drop_down = tk.Label(self.main_win, text='', fg=self.text_color, bg=self.bg_color, font=('Arial', 20))
@@ -80,6 +83,70 @@ class Display():
 
         text.pack()
         self.datalabel.pack()
+
+    def create_todo_window(self):
+        todo_frame = ttk.Frame(self.todo_win, style='TFrame')
+        todo_frame.pack(expand=True, fill='both', padx=20, pady=20)
+
+        todo_label = tk.Label(todo_frame, text="To-Do List", fg=self.accent_color, bg=self.bg_color, font=('Arial', 20, 'bold'))
+        todo_label.pack(pady=(0, 10))
+
+        # Create a frame for the todo list
+        list_frame = ttk.Frame(todo_frame, style='TFrame')
+        list_frame.pack(expand=True, fill='both')
+
+        # Add a scrollbar
+        scrollbar = ttk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Create a listbox for todos
+        self.todo_listbox = tk.Listbox(list_frame, bg=self.bg_color, fg=self.text_color,
+                                    selectbackground=self.accent_color, font=('Arial', 12),
+                                    yscrollcommand=scrollbar.set)
+        self.todo_listbox.pack(expand=True, fill='both')
+        scrollbar.config(command=self.todo_listbox.yview)
+
+        # Entry field and button to add new todos
+        entry_frame = ttk.Frame(todo_frame, style='TFrame')
+        entry_frame.pack(fill='x', pady=(10, 0))
+
+        self.todo_entry = tk.Entry(entry_frame, bg=self.secondary_color, fg=self.text_color,
+                                insertbackground=self.text_color, font=('Arial', 12))
+        self.todo_entry.pack(side=tk.LEFT, expand=True, fill='x')
+
+        add_button = tk.Button(entry_frame, text="Add", fg=self.text_color, bg=self.accent_color,
+                            font=('Arial', 12), command=self.add_todo)
+        add_button.pack(side=tk.RIGHT, padx=(10, 0))
+
+        # Button to remove completed todos
+        remove_button = tk.Button(todo_frame, text="Remove Completed", fg=self.text_color,
+                                bg=self.accent_color, font=('Arial', 12), command=self.remove_completed)
+        remove_button.pack(pady=(10, 0))
+
+        # Load existing todos
+        self.load_todos()
+
+def add_todo(self):
+    todo = self.todo_entry.get()
+    if todo:
+        self.todo_listbox.insert(tk.END, todo)
+        self.todo_entry.delete(0, tk.END)
+        self.save_todos()
+
+def remove_completed(self):
+    completed = self.todo_listbox.curselection()
+    for index in reversed(completed):
+        self.todo_listbox.delete(index)
+    self.save_todos()
+
+def load_todos(self):
+    todos = self.database.get_todos()
+    for todo in todos:
+        self.todo_listbox.insert(tk.END, todo)
+
+def save_todos(self):
+    todos = self.todo_listbox.get(0, tk.END)
+    self.database.save_todos(todos)    
 
     def settings_setup(self):
         finding = self.database.get_setting()
@@ -157,8 +224,9 @@ class Display():
 
     def close(self):
         print('finalising')
+        self.save_todos()  # Add this line
         self.database.close(self.format_time(self.overall_time), self.soundonoff)  
-        self.root.destroy()  
+        self.root.destroy() 
 
     def id_to_str(self, period):
         id = {1: 'Work', 2: 'Short Rest', 3: 'Work', 4: 'Short Rest', 5: 'Work', 6: 'Long Rest'}
