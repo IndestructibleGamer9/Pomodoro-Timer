@@ -3,6 +3,50 @@ from tkinter import ttk
 import time as systime
 import threading
 import pygame
+import mysql.connector
+import datetime
+from datetime import datetime
+from tkinter import messagebox
+import sys
+
+database_available = False
+
+class Database():
+    def __init__(self):
+        if database_available:
+            self.db = mysql.connector.connect(
+                        host="127.0.0.1:3306",
+                        user='root',
+                        password='Blue7afl',
+                        database='poromodotimer'
+                        )
+            self.c = self.db.cursor()
+
+    def connect(self):
+        try:
+            self.db = mysql.connector.connect(
+                        host="127.0.0.1:3306",
+                        user='root',
+                        password='Blue7afl',
+                        database='poromodotimer'
+                        )
+            self.c = self.db.cursor()
+            self.database_available = True
+            return True
+        except: 
+            self.database_available = False
+            return False   
+
+
+    def save_settings(self, sound):
+        prompt = f'UPDATE settings sound=%s WHERE id=1', sound
+        self.c.execute(prompt)
+        self.c.commit()
+
+    def save_times(self, startDatetime, endDatetime, foverall):
+        prompt = 'INSERT INTO times (sdt, fdt, fat) VALUES (%s, %s, %s)', (startDatetime, endDatetime, foverall)
+        self.c.execute(prompt)
+        self.c.commit()
 
 class Display():
     def __init__(self):
@@ -18,6 +62,18 @@ class Display():
         self.i = 1
         pygame.mixer.init()
         self.overall_time = 0
+        self.connect_database()
+        
+
+    def connect_database(self):
+        self.Database = Database()
+        r = self.Database.connect()
+        if r:
+            print('databse connected your good to go')
+        else:
+            messagebox.showerror("databse error", "Could not connect to databse! data will not be saved")  
+
+    
 
     def main(self):
         self.main_setup()
@@ -25,8 +81,11 @@ class Display():
         self.root.mainloop()
 
     def main_setup(self):
+        self.start_datetime = datetime.datetime
+        print(self.start_datetime)
         self.root.configure(bg=self.bg_color)
         self.root.title('FOCUS')
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.setup_style()
         self.create_notebook()
         self.create_main_window()
@@ -56,6 +115,15 @@ class Display():
         self.notebook.add(self.main_win, text='Timer')
         self.notebook.add(self.stats, text='Statistics')
         self.notebook.add(self.settings, text='Settings')
+
+    def on_closing(self):
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            if database_available:
+                self.Database.save_times()
+                self.Database.save_settings()    
+
+            self.root.destroy()
+            sys.exit()
 
     def create_main_window(self):
         self.drop_down = tk.Label(self.main_win, text='', fg=self.text_color, bg=self.bg_color, font=('Arial', 20))
@@ -148,3 +216,4 @@ class Display():
 if __name__ == "__main__":
     app = Display()
     app.main()
+    
