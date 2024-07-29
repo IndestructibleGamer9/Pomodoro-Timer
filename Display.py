@@ -1,11 +1,10 @@
 import tkinter as tk 
 from tkinter import ttk
 import time as systime
-import threading
 import pygame
-import mysql.connector
-import datetime
 from datetime import datetime
+import mysql.connector
+
 from tkinter import messagebox
 import sys
 
@@ -15,38 +14,63 @@ class Database():
     def __init__(self):
         if database_available:
             self.db = mysql.connector.connect(
-                        host="127.0.0.1:3306",
-                        user='root',
-                        password='Blue7afl',
-                        database='poromodotimer'
-                        )
+            host="127.0.0.1",
+            port=3306,
+            user='root',
+            password='password',
+            database='poromodotimer'
+        )
+
             self.c = self.db.cursor()
 
     def connect(self):
         try:
             self.db = mysql.connector.connect(
-                        host="127.0.0.1:3306",
+                        host="127.0.0.1",
+                        port=3306,
                         user='root',
-                        password='Blue7afl',
+                        password='password',
                         database='poromodotimer'
                         )
             self.c = self.db.cursor()
-            self.database_available = True
+            database_available = True
             return True
         except: 
-            self.database_available = False
+            database_available = False
             return False   
+        
+    def check_connection(self):
+        try:
+            self.db.ping(reconnect=True, attempts=3, delay=5)
+        except mysql.connector.Error as err:
+            print(f"Connection error: {err}")
+            self.connect()  # Attempt to reconnect    
 
 
     def save_settings(self, sound):
-        prompt = f'UPDATE settings sound=%s WHERE id=1', sound
-        self.c.execute(prompt)
-        self.c.commit()
+        print(sound)
+        self.check_connection()
+        prompt = f'UPDATE settings SET sound=%s WHERE id=1'
+        self.c.execute(prompt, (sound,))
+        self.db.commit()
+        
 
     def save_times(self, startDatetime, endDatetime, foverall):
-        prompt = 'INSERT INTO times (sdt, fdt, fat) VALUES (%s, %s, %s)', (startDatetime, endDatetime, foverall)
+        prompt = 'INSERT INTO times (sdt, fdt, fat) VALUES (%s, %s, %s)'
+        values = (startDatetime, endDatetime, foverall)
+        self.c.execute(prompt, values)
+        self.db.commit()
+
+    def getData(self):
+        prompt = "SELECT * FROM times"  
         self.c.execute(prompt)
-        self.c.commit()
+        result = self.c.fetchall()
+        return result
+
+        
+
+    def comm(self):
+        self.db.commit()    
 
 class Display():
     def __init__(self):
@@ -70,6 +94,7 @@ class Display():
         r = self.Database.connect()
         if r:
             print('databse connected your good to go')
+            self.databseconn = True
         else:
             messagebox.showerror("databse error", "Could not connect to databse! data will not be saved")  
 
@@ -81,16 +106,21 @@ class Display():
         self.root.mainloop()
 
     def main_setup(self):
-        self.start_datetime = datetime.datetime
-        print(self.start_datetime)
         self.root.configure(bg=self.bg_color)
         self.root.title('FOCUS')
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.setup_database()
         self.setup_style()
         self.create_notebook()
         self.create_main_window()
         self.create_stats_window()
         self.settings_setup()
+
+    def setup_database(self):
+        self.start_datetime = datetime.now()
+        data = self.Database.getData()
+        print(data)
+        print(type(data))
 
     def setup_style(self):
         style = ttk.Style()
@@ -118,10 +148,14 @@ class Display():
 
     def on_closing(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            if database_available:
-                self.Database.save_times()
-                self.Database.save_settings()    
-
+            if self.databseconn:
+                print('Saving data to databse')
+                self.finish_datetime = datetime.now()
+                self.Database.save_times(self.start_datetime, self.finish_datetime, self.overall_time)
+                self.Database.save_settings(self.soundonoff)    
+                self.Database.comm()
+            else:
+                print('not connected to databse')
             self.root.destroy()
             sys.exit()
 
