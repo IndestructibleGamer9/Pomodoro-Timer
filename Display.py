@@ -4,7 +4,6 @@ import time as systime
 import pygame
 from datetime import datetime
 import mysql.connector
-
 from tkinter import messagebox
 import sys
 
@@ -48,7 +47,6 @@ class Database():
 
 
     def save_settings(self, sound):
-        print(sound)
         self.check_connection()
         prompt = f'UPDATE settings SET sound=%s WHERE id=1'
         self.c.execute(prompt, (sound,))
@@ -118,9 +116,7 @@ class Display():
 
     def setup_database(self):
         self.start_datetime = datetime.now()
-        data = self.Database.getData()
-        print(data)
-        print(type(data))
+        self.data = self.Database.getData()
 
     def setup_style(self):
         style = ttk.Style()
