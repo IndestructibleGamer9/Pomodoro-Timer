@@ -13,10 +13,10 @@ class Database():
     def __init__(self):
         if database_available:
             self.db = mysql.connector.connect(
-            host="127.0.0.1",
-            port=3306,
-            user='root',
-            password='password',
+            host="",
+            port='',
+            user='',
+            password='',
             database='poromodotimer'
         )
 
@@ -25,10 +25,10 @@ class Database():
     def connect(self):
         try:
             self.db = mysql.connector.connect(
-                        host="127.0.0.1",
-                        port=3306,
-                        user='root',
-                        password='password',
+                        host="",
+                        port='',
+                        user='',
+                        password='',
                         database='poromodotimer'
                         )
             self.c = self.db.cursor()
