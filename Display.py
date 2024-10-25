@@ -9,7 +9,7 @@ import sys
 
 database_available = False
 
-class Database():
+class Database(): 
     def __init__(self):
         if database_available:
             self.db = mysql.connector.connect(
