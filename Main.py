@@ -4,7 +4,9 @@ import pygame
 from datetime import datetime
 import sqlite3
 from tkinter import messagebox
+from PIL import Image, ImageTk
 import sys
+import matplotlib.pyplot as plt
 
 database_available = False
 
@@ -39,7 +41,8 @@ class Database():
             print(self.c.fetchone())
         except Exception as err:
             print(f"Connection error: {err}")
-            self.connect()  # Attempt to reconnect    
+            self.connect()  # Attempt to reconnect 
+            print('attempting to reconnect!')
 
 
     def save_settings(self, sound, work, short, long):
@@ -78,7 +81,7 @@ class Display():
         self.accent_color = '#3F8EFC'
         self.secondary_color = '#6D696A'
         self.play = False
-        self.time = 1200
+        self.time = None
         self.period_type = 1
         self.soundonoff = True
         self.i = 1
@@ -108,12 +111,15 @@ class Display():
         self.root.configure(bg=self.bg_color)
         self.root.title('FOCUS')
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        settings =self.Database.getsettings()
+        self.time = (int(settings[0][2]) * 60)
         self.setup_database()
         self.setup_style()
         self.create_notebook()
         self.create_main_window()
         self.create_stats_window()
         self.settings_setup()
+        
 
     def setup_database(self):
         self.start_datetime = datetime.now()
@@ -167,9 +173,18 @@ class Display():
         self.start_stop = tk.Button(self.main_win, text='START', fg=self.text_color, bg=self.accent_color, font=('Arial', 20, 'bold'), 
                                     command=self.start, relief=tk.FLAT, padx=20, pady=10)
 
+        # Load and display PNG
+        self.refresh_im = Image.open('assets/refresh-ccw.png')
+        self.arrow_im = Image.open('assets/arrow-right.png')
+        self.refresh_ph = ImageTk.PhotoImage(self.refresh_im)
+        self.arrow_ph = ImageTk.PhotoImage(self.arrow_im)
+        self.refrsh_label = tk.Button(self.main_win, image=self.refresh_ph)
+        self.arrow_button = tk.Button(self.main_win, image=self.arrow_ph, command=self.finish)
         self.period.pack(pady=(50, 10))
         self.timer.pack(pady=30)
         self.start_stop.pack(pady=30)
+        self.refrsh_label.pack(side="left", pady=(50, 10))
+        self.arrow_button.pack(side="left", pady=(50, 10))
 
     def create_stats_window(self):
         text = tk.Label(self.stats, text='Overall Time (MM:SS)', fg=self.accent_color, bg=self.bg_color, font=('Arial', 30, 'bold'))  
@@ -231,15 +246,18 @@ class Display():
 
     def finish(self):
         self.period_type += 1 
+        if  self.period_type > 4:
+            self.period_type = 1
         ps = self.id_to_str(self.period_type)
-        self.time = 1200 if ps == 'Work' else 300 if ps == 'Short Rest' else 1500
+        self.time = self.work_time.get()*60 if ps == 'Work' else self.short_break.get()*60 if ps == 'Short Rest' else self.long_break.get()*60
         if ps == 'Long Rest':
             self.message('You completed a full cycle!')
         self.timer.config(text=self.format_time(self.time)) 
         self.start_stop.config(text='START')
         self.play = False
         self.period.config(text=ps.upper())
-        self.play_alarm()
+        if self.soundonoff.get():
+            self.play_alarm()
 
     def format_time(self, seconds):
         min, sec = divmod(seconds, 60)
