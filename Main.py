@@ -6,7 +6,9 @@ import sqlite3
 from tkinter import messagebox
 from PIL import Image, ImageTk
 import sys
+import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 database_available = False
 
@@ -79,6 +81,7 @@ class Display():
         self.text_color = '#EFEFEF'
         self.accent_color = '#3F8EFC'
         self.secondary_color = '#6D696A'
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.play = False
         self.time = None
         self.period_type = 1
@@ -109,7 +112,6 @@ class Display():
     def main_setup(self):
         self.root.configure(bg=self.bg_color)
         self.root.title('FOCUS')
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         settings =self.Database.getsettings()
         self.time = (int(settings[0][2]) * 60)
         self.setup_database()
@@ -162,7 +164,6 @@ class Display():
             else:
                 print('not connected to databse')
             self.root.destroy()
-            sys.exit()
 
     def create_main_window(self):
         self.drop_down = tk.Label(self.main_win, text='', fg=self.text_color, bg=self.bg_color, font=('Arial', 20))
@@ -192,6 +193,30 @@ class Display():
 
         text.pack()
         self.datalabel.pack()
+
+        data = self.seven_day_data()
+        times, dates = data
+        # Convert time strings to total seconds
+        time_in_seconds = []
+        for time_str in times:
+            m, s = map(int, time_str.split(':'))
+            time_in_seconds.append(m * 60 + s)
+        # Convert total seconds to minutes
+        time_in_minutes = [seconds / 60 for seconds in time_in_seconds]
+
+        fig, ax = plt.subplots(figsize=(12, 6), facecolor='#EFEFEF')
+        ax.bar(dates, time_in_minutes, color='#3F8EFC', edgecolor='#02182B')
+        ax.set_xlabel('Date', fontsize=14, color='#070707')
+        ax.set_ylabel('Time (minutes)', fontsize=14, color='#070707')
+        ax.set_title('Time Data Over Seven Days', fontsize=16, color='#6D696A')
+        ax.grid(True, color='#6D696A', linestyle='--', linewidth=0.5)
+        ax.set_xticks(dates)
+        ax.set_xticklabels(dates, rotation=45, ha='right')
+
+        # Embed the plot into the Tkinter window
+        canvas = FigureCanvasTkAgg(fig, master=self.stats)
+        canvas.draw()
+        canvas.get_tk_widget().pack()
 
     def settings_setup(self):
         #retrives settings from DB
@@ -227,12 +252,14 @@ class Display():
 
     def seven_day_data(self):
         data = self.Database.getData()
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         past_week_overall_time = []
+        dates = []
         today = date.today()
         for i in range(7):
             day = today - timedelta(days=i)
             day_str = day.strftime('%Y-%m-%d')
-            
+            dates.append(days[day.weekday()])
             day_data = [entry for entry in data if entry[1].startswith(day_str)]
             if day_data:
                 overall_time = sum(int(entry[3]) for entry in day_data)
@@ -240,7 +267,7 @@ class Display():
                 overall_time = 0
             past_week_overall_time.append(self.format_time(overall_time))
 
-        return past_week_overall_time
+        return past_week_overall_time, dates
 
     def start(self):
         self.play = not self.play
