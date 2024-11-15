@@ -1,7 +1,7 @@
 import tkinter as tk 
 from tkinter import ttk
 import pygame
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import sqlite3
 from tkinter import messagebox
 from PIL import Image, ImageTk
@@ -38,7 +38,6 @@ class Database():
     def check_connection(self):
         try:
             self.c.execute('SELECT * FROM times')
-            print(self.c.fetchone())
         except Exception as err:
             print(f"Connection error: {err}")
             self.connect()  # Attempt to reconnect 
@@ -155,7 +154,8 @@ class Display():
             if self.databseconn:
                 print('Saving data to databse')
                 self.finish_datetime = datetime.now()
-                self.Database.save_times(self.start_datetime, self.finish_datetime, self.overall_time)
+                if self.overall_time > 0:
+                    self.Database.save_times(self.start_datetime, self.finish_datetime, self.overall_time)
                 print('updating settings')
                 self.Database.save_settings(self.soundonoff.get(), self.work_time.get(), self.short_break.get(), self.long_break.get())    
                 self.Database.comm()
@@ -178,7 +178,7 @@ class Display():
         self.arrow_im = Image.open('assets/arrow-right.png')
         self.refresh_ph = ImageTk.PhotoImage(self.refresh_im)
         self.arrow_ph = ImageTk.PhotoImage(self.arrow_im)
-        self.refrsh_label = tk.Button(self.main_win, image=self.refresh_ph)
+        self.refrsh_label = tk.Button(self.main_win, image=self.refresh_ph, command=self.reset)
         self.arrow_button = tk.Button(self.main_win, image=self.arrow_ph, command=self.finish)
         self.period.pack(pady=(50, 10))
         self.timer.pack(pady=30)
@@ -225,6 +225,22 @@ class Display():
         print('updating settings')
         self.Database.save_settings(self.soundonoff.get(), self.work_time.get(), self.short_break.get(), self.long_break.get())
 
+    def seven_day_data(self):
+        data = self.Database.getData()
+        past_week_overall_time = []
+        today = date.today()
+        for i in range(7):
+            day = today - timedelta(days=i)
+            day_str = day.strftime('%Y-%m-%d')
+            
+            day_data = [entry for entry in data if entry[1].startswith(day_str)]
+            if day_data:
+                overall_time = sum(int(entry[3]) for entry in day_data)
+            else:
+                overall_time = 0
+            past_week_overall_time.append(self.format_time(overall_time))
+
+        return past_week_overall_time
 
     def start(self):
         self.play = not self.play
@@ -259,6 +275,14 @@ class Display():
         if self.soundonoff.get():
             self.play_alarm()
 
+    def reset(self):
+        ps = self.id_to_str(self.period_type)
+        self.time = self.work_time.get()*60 if ps == 'Work' else self.short_break.get()*60 if ps == 'Short Rest' else self.long_break.get()*60
+        self.timer.config(text=self.format_time(self.time)) 
+        self.start_stop.config(text='START')
+        self.play = False
+        self.period.config(text=ps.upper())        
+
     def format_time(self, seconds):
         min, sec = divmod(seconds, 60)
         return f'{min:02d}:{sec:02d}'
@@ -269,7 +293,6 @@ class Display():
 
     def clear_message(self):
         self.drop_down.config(text='', bg=self.bg_color)    
- 
 
     def id_to_str(self, period):
         id = {1: 'Work', 2: 'Short Rest', 3: 'Work', 4: 'Long Rest'}
