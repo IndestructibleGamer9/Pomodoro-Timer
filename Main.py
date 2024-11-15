@@ -61,6 +61,12 @@ class Database():
         result = self.c.fetchall()
         return result
     
+    def getsettings(self):
+        prompt = "SELECT * FROM settings WHERE id=1"  
+        self.c.execute(prompt)
+        result = self.c.fetchall()
+        return result
+    
     def comm(self):
         self.db.commit()    
 
@@ -172,11 +178,21 @@ class Display():
         text.pack()
         self.datalabel.pack()
 
-    def settings_setup(self):  
+    def settings_setup(self):
+        #retrives settings from DB
+        settings =self.Database.getsettings()
+
+        # assigns values to tkinter variables
         self.soundonoff = tk.BooleanVar()
         self.work_time = tk.IntVar()
         self.long_break = tk.IntVar()
-        self.short_break = tk.IntVar()
+        self.short_break = tk.IntVar() 
+        self.soundonoff.set(settings[0][1])
+        self.work_time.set(settings[0][2])
+        self.short_break.set(settings[0][3])
+        self.long_break.set(settings[0][4])
+
+        # creates widgets and sets them to the variables
         self.sound = ttk.Checkbutton(self.settings, text='Sound', style='TCheckbutton', variable=self.soundonoff)
         self.sound.pack(pady=20)
         self.work_time_changer = tk.Scale(self.settings, variable=self.work_time, from_=20, to=60, orient=tk.HORIZONTAL, label='Work Time (Minutes)', length=200)
