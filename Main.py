@@ -4,11 +4,11 @@ import pygame
 from datetime import datetime, date, timedelta
 import sqlite3
 from tkinter import messagebox
+from desktop_notifier import DesktopNotifier, Urgency, Button, ReplyField, DEFAULT_SOUND
 from PIL import Image, ImageTk
-import sys, logging
-import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import asyncio
 
 database_available = False
 
@@ -90,7 +90,7 @@ class Display():
         pygame.mixer.init()
         self.overall_time = 0
         self.connect_database()
-        
+        self.notifier = DesktopNotifier(app_name='Pomodoro Timer')
 
     def connect_database(self):
         self.Database = Database()
@@ -153,8 +153,6 @@ class Display():
 
     def on_closing(self):        
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            
-            
             # Cancel any pending after callbacks
             for after_id in self.root.tk.call('after', 'info'):
                 self.root.after_cancel(after_id)
@@ -189,7 +187,7 @@ class Display():
         self.refresh_ph = ImageTk.PhotoImage(self.refresh_im)
         self.arrow_ph = ImageTk.PhotoImage(self.arrow_im)
         self.refrsh_label = tk.Button(self.main_win, image=self.refresh_ph, command=self.reset)
-        self.arrow_button = tk.Button(self.main_win, image=self.arrow_ph, command=self.finish)
+        self.arrow_button = tk.Button(self.main_win, image=self.arrow_ph, command=self.next)
         self.period.pack(pady=(50, 10))
         self.timer.pack(pady=30)
         self.start_stop.pack(pady=30)
@@ -259,6 +257,7 @@ class Display():
     def update_settings(self):
         print('updating settings')
         self.Database.save_settings(self.soundonoff.get(), self.work_time.get(), self.short_break.get(), self.long_break.get())
+        self.reset()
 
     def seven_day_data(self):
         data = self.Database.getData()
@@ -289,28 +288,53 @@ class Display():
         self.datalabel.config(text=self.format_time(self.overall_time))
         if self.play:
             if self.time == 0:
+                self.start_stop.config(text='START')
                 self.play = False
                 self.finish()
-                self.time += 1
-            self.time -= 1 
+                self.time += 1 # to counteract =-1 on the line bellow after running finish command
+            self.time -= 1 #counteracting this!!!!
             self.overall_time += 1
             self.timer.config(text=self.format_time(self.time))
         self.after = self.root.after(1000, self.loop)
 
+    async def send_message(self, ps):
+        period_display = 'Start working' if ps == 'Work' else 'Take a break' if ps == 'Short Rest' else 'Have a long rest'
+        message_display = 'Come back and start your next work session' if ps == 'Work' else 'Start your short break now, you earned it' if ps == 'Short Rest' else 'Awesome work take a refreshing break you deserve it!'  
+        try:
+            await self.notifier.send(
+                title=period_display,
+                message=message_display,
+                sound=DEFAULT_SOUND
+            )
+        except Exception as e:
+            print(f"Failed to send notification: {e}")   
+
     def finish(self):
         self.period_type += 1 
-        if  self.period_type > 4:
+        if self.period_type > 4:
             self.period_type = 1
         ps = self.id_to_str(self.period_type)
         self.time = self.work_time.get()*60 if ps == 'Work' else self.short_break.get()*60 if ps == 'Short Rest' else self.long_break.get()*60
         if ps == 'Long Rest':
             self.message('You completed a full cycle!')
+        self.timer.config(text=self.format_time(self.time))    
+        asyncio.run(self.send_message(ps))     
+        self.period.config(text=ps.upper())
+        if self.soundonoff.get():
+            self.play_alarm()
+        self.reset() 
+        print('reseting timer ')   
+
+    def next(self):    
+        self.period_type += 1 
+        if  self.period_type > 4:
+            self.period_type = 1
+        ps = self.id_to_str(self.period_type)
+        self.time = self.work_time.get()*60 if ps == 'Work' else self.short_break.get()*60 if ps == 'Short Rest' else self.long_break.get()*60
         self.timer.config(text=self.format_time(self.time)) 
         self.start_stop.config(text='START')
         self.play = False
         self.period.config(text=ps.upper())
-        if self.soundonoff.get():
-            self.play_alarm()
 
     def reset(self):
         ps = self.id_to_str(self.period_type)
