@@ -176,7 +176,6 @@ class Display():
             self.root.destroy()
 
     def create_main_window(self):
-        #TODO add a progress bar
         self.drop_down = tk.Label(self.main_win, text='', fg=self.text_color, bg=self.bg_color, font=('Arial', 20))
         self.drop_down.pack(pady=(20, 0))
         self.progress = tk.IntVar()
@@ -414,7 +413,7 @@ class Display():
         #TODO new alarms?
         if self.soundonoff:
             try:
-                pygame.mixer.music.load('Alarm.mp3')
+                pygame.mixer.music.load('/assets/Alarm.mp3')
                 pygame.mixer.music.play()
             except pygame.error as e:
                 print(f"Error playing sound: {e}")
