@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 import sqlite3
 from tkinter import messagebox
 from PIL import Image, ImageTk
-import sys
+import sys, logging
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -151,18 +151,27 @@ class Display():
         self.notebook.add(self.stats, text='Statistics')
         self.notebook.add(self.settings, text='Settings')
 
-    def on_closing(self):
+    def on_closing(self):        
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            
+            
+            # Cancel any pending after callbacks
+            for after_id in self.root.tk.call('after', 'info'):
+                self.root.after_cancel(after_id)
+                
             if self.databseconn:
-                print('Saving data to databse')
-                self.finish_datetime = datetime.now()
-                if self.overall_time > 0:
-                    self.Database.save_times(self.start_datetime, self.finish_datetime, self.overall_time)
-                print('updating settings')
-                self.Database.save_settings(self.soundonoff.get(), self.work_time.get(), self.short_break.get(), self.long_break.get())    
-                self.Database.comm()
-            else:
-                print('not connected to databse')
+                try:
+                    self.Database.db.close()
+                except Exception as e:
+                    print('error closing database connection')
+            try:
+                pygame.mixer.quit()
+                pygame.quit()
+            except Exception as e:
+                print('error closing pygame')
+            for widget in self.root.winfo_children():
+                widget.destroy()
+            self.root.quit()
             self.root.destroy()
 
     def create_main_window(self):
@@ -195,6 +204,7 @@ class Display():
         self.datalabel.pack()
 
         data = self.seven_day_data()
+        self.Database.comm()
         times, dates = data
         # Convert time strings to total seconds
         time_in_seconds = []
@@ -285,7 +295,7 @@ class Display():
             self.time -= 1 
             self.overall_time += 1
             self.timer.config(text=self.format_time(self.time))
-        self.root.after(1000, self.loop)
+        self.after = self.root.after(1000, self.loop)
 
     def finish(self):
         self.period_type += 1 
@@ -316,7 +326,7 @@ class Display():
 
     def message(self, message, duration=5000):
         self.drop_down.config(text=message, bg=self.accent_color)
-        self.root.after(duration, self.clear_message)
+        self.message_after = self.root.after(duration, self.clear_message)
 
     def clear_message(self):
         self.drop_down.config(text='', bg=self.bg_color)    
