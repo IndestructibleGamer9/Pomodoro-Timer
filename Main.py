@@ -75,6 +75,7 @@ class Database():
         self.db.commit()    
 
 class Display():
+    #TODO todolist
     def __init__(self):
         self.root = tk.Tk()
         self.bg_color = '#02182B'
@@ -86,6 +87,7 @@ class Display():
         self.time = None
         self.period_type = 1
         self.soundonoff = True
+        self.countdown_amount = 0
         self.i = 1
         pygame.mixer.init()
         self.overall_time = 0
@@ -158,6 +160,7 @@ class Display():
                 self.root.after_cancel(after_id)
                 
             if self.databseconn:
+                self.Database.save_times(self.start_datetime, datetime.now(), self.overall_time)
                 try:
                     self.Database.db.close()
                 except Exception as e:
@@ -173,14 +176,16 @@ class Display():
             self.root.destroy()
 
     def create_main_window(self):
+        #TODO add a progress bar
         self.drop_down = tk.Label(self.main_win, text='', fg=self.text_color, bg=self.bg_color, font=('Arial', 20))
         self.drop_down.pack(pady=(20, 0))
-
+        self.progress = tk.IntVar()
+        self.progress.set(0)
+        self.progress_bar = ttk.Progressbar(self.main_win, maximum=100, variable=self.progress, style='Horizontal.TProgressbar', length=300)
         self.timer = tk.Label(self.main_win, text=self.format_time(self.time), fg=self.text_color, bg=self.bg_color, font=('Arial', 80, 'bold'))
         self.period = tk.Label(self.main_win, text='WORK', fg=self.accent_color, bg=self.bg_color, font=('Arial', 30, 'bold'))
         self.start_stop = tk.Button(self.main_win, text='START', fg=self.text_color, bg=self.accent_color, font=('Arial', 20, 'bold'), 
                                     command=self.start, relief=tk.FLAT, padx=20, pady=10)
-
         # Load and display PNG
         self.refresh_im = Image.open('assets/refresh-ccw.png')
         self.arrow_im = Image.open('assets/arrow-right.png')
@@ -189,6 +194,7 @@ class Display():
         self.refrsh_label = tk.Button(self.main_win, image=self.refresh_ph, command=self.reset)
         self.arrow_button = tk.Button(self.main_win, image=self.arrow_ph, command=self.next)
         self.period.pack(pady=(50, 10))
+        self.progress_bar.pack(pady=(0, 20))
         self.timer.pack(pady=30)
         self.start_stop.pack(pady=30)
         self.refrsh_label.pack(side="left", pady=(50, 10))
@@ -200,33 +206,62 @@ class Display():
 
         text.pack()
         self.datalabel.pack()
+        
+        # Initialize canvas attribute
+        self.stats_canvas = None
+        self.update_stats_graph()
 
+    def update_stats_graph(self):
         data = self.seven_day_data()
         self.Database.comm()
         times, dates = data
+        
         # Convert time strings to total seconds
         time_in_seconds = []
         for time_str in times:
             m, s = map(int, time_str.split(':'))
             time_in_seconds.append(m * 60 + s)
-        # Convert total seconds to minutes
+        
+        # Convert total seconds to minutes 
         time_in_minutes = [seconds / 60 for seconds in time_in_seconds]
+        
+        # Add current session time to today's total (index 0)
+        time_in_minutes[0] = time_in_minutes[0] + self.overall_time / 60
+        
+        # Calculate overall time in HH:MM:SS format
+        total_seconds = sum(time_in_seconds) + self.overall_time
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        overall_time_str = f'Total Time: {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}'
+        
+        # Ensure dates and time_in_minutes have same length
+        if len(dates) != len(time_in_minutes):
+            print(f"Warning: Data length mismatch - dates:{len(dates)}, times:{len(time_in_minutes)}")
+            min_len = min(len(dates), len(time_in_minutes))
+            dates = dates[:min_len]
+            time_in_minutes = time_in_minutes[:min_len]
+
+        time_in_minutes[0] + self.overall_time / 60
+        # Clear previous graph if it exists
+        if self.stats_canvas is not None:
+            self.stats_canvas.get_tk_widget().destroy()
 
         fig, ax = plt.subplots(figsize=(12, 6), facecolor='#EFEFEF')
         ax.bar(dates, time_in_minutes, color='#3F8EFC', edgecolor='#02182B')
         ax.set_xlabel('Date', fontsize=14, color='#070707')
         ax.set_ylabel('Time (minutes)', fontsize=14, color='#070707')
-        ax.set_title('Time Data Over Seven Days', fontsize=16, color='#6D696A')
+        ax.set_title(f'Time Data Over Seven Days\n{overall_time_str}', fontsize=16, color='#6D696A')
         ax.grid(True, color='#6D696A', linestyle='--', linewidth=0.5)
-        ax.set_xticks(dates)
+        ax.set_xticks(range(len(dates)))
         ax.set_xticklabels(dates, rotation=45, ha='right')
 
-        # Embed the plot into the Tkinter window
-        canvas = FigureCanvasTkAgg(fig, master=self.stats)
-        canvas.draw()
-        canvas.get_tk_widget().pack()
+        # Update the canvas
+        self.stats_canvas = FigureCanvasTkAgg(fig, master=self.stats)
+        self.stats_canvas.draw()
+        self.stats_canvas.get_tk_widget().pack()    
 
     def settings_setup(self):
+        #TODO add auto start next session option
         #retrives settings from DB
         settings =self.Database.getsettings()
 
@@ -265,15 +300,22 @@ class Display():
         past_week_overall_time = []
         dates = []
         today = date.today()
+        
         for i in range(7):
             day = today - timedelta(days=i)
             day_str = day.strftime('%Y-%m-%d')
             dates.append(days[day.weekday()])
             day_data = [entry for entry in data if entry[1].startswith(day_str)]
+            
             if day_data:
                 overall_time = sum(int(entry[3]) for entry in day_data)
             else:
                 overall_time = 0
+                
+            # Add current session time to today's total
+            if i == 0:  # If this is today
+                overall_time += self.overall_time
+                
             past_week_overall_time.append(self.format_time(overall_time))
 
         return past_week_overall_time, dates
@@ -281,8 +323,8 @@ class Display():
     def start(self):
         self.play = not self.play
         self.start_stop.config(text='PAUSE' if self.play else 'START')
-        if self.play:
-            self.alarm = False
+        self.update_stats_graph()
+            
 
     def loop(self):
         self.datalabel.config(text=self.format_time(self.overall_time))
@@ -290,11 +332,19 @@ class Display():
             if self.time == 0:
                 self.start_stop.config(text='START')
                 self.play = False
+                self.progress.set(100)  # Set to 100% when complete
                 self.finish()
-                self.time += 1 # to counteract =-1 on the line bellow after running finish command
-            self.time -= 1 #counteracting this!!!!
-            self.overall_time += 1
-            self.timer.config(text=self.format_time(self.time))
+                self.time += 1
+            else:
+                self.time -= 1
+                self.overall_time += 1
+                # Calculate and update progress
+                total_time = self.work_time.get()*60 if self.id_to_str(self.period_type) == 'Work' else \
+                            self.short_break.get()*60 if self.id_to_str(self.period_type) == 'Short Rest' else \
+                            self.long_break.get()*60
+                progress = ((total_time - self.time) / total_time) * 100
+                self.progress.set(progress)
+                self.timer.config(text=self.format_time(self.time))
         self.after = self.root.after(1000, self.loop)
 
     async def send_message(self, ps):
@@ -311,7 +361,7 @@ class Display():
 
     def finish(self):
         self.period_type += 1 
-        if self.period_type > 4:
+        if self.period_type > 6:
             self.period_type = 1
         ps = self.id_to_str(self.period_type)
         self.time = self.work_time.get()*60 if ps == 'Work' else self.short_break.get()*60 if ps == 'Short Rest' else self.long_break.get()*60
@@ -327,7 +377,7 @@ class Display():
 
     def next(self):    
         self.period_type += 1 
-        if  self.period_type > 4:
+        if  self.period_type > 6:
             self.period_type = 1
         ps = self.id_to_str(self.period_type)
         self.time = self.work_time.get()*60 if ps == 'Work' else self.short_break.get()*60 if ps == 'Short Rest' else self.long_break.get()*60
@@ -342,7 +392,8 @@ class Display():
         self.timer.config(text=self.format_time(self.time)) 
         self.start_stop.config(text='START')
         self.play = False
-        self.period.config(text=ps.upper())        
+        self.period.config(text=ps.upper())
+        self.progress.set(0)        
 
     def format_time(self, seconds):
         min, sec = divmod(seconds, 60)
@@ -356,10 +407,11 @@ class Display():
         self.drop_down.config(text='', bg=self.bg_color)    
 
     def id_to_str(self, period):
-        id = {1: 'Work', 2: 'Short Rest', 3: 'Work', 4: 'Long Rest'}
+        id = {1: 'Work', 2: 'Short Rest', 3: 'Work', 4: 'Short Rest', 5: 'Work', 6: 'Long Rest'}
         return id[period]
 
     def play_alarm(self):
+        #TODO new alarms?
         if self.soundonoff:
             try:
                 pygame.mixer.music.load('Alarm.mp3')
