@@ -45,3 +45,5 @@ This project is not licenced I have no clue how to
 Acknowledgements
 Pomodoro Technique
 Python
+
+# hit us with some stars if you want to see me make this in a flask app!
