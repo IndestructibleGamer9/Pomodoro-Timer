@@ -25,6 +25,7 @@ Usage
 To start the Pomodoro Timer, run the following command:
 
 python main.py
+
 Contributing
 Contributions are welcome! Please follow these steps to contribute:
 
